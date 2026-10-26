@@ -45,12 +45,18 @@ const expireOldQrs = async () => {
 
 const startQrExpirationJob = () => {
   const cronExpr = process.env.EXPIRATION_JOB_CRON || "1 0 * * *";
-  
-  logger.info(`[${COMPONENT}] Job programado con cron: ${cronExpr}`);
-  
+  // La central vence los QR múltiples a las 23:59:59 de Bolivia (-04:00); sin
+  // timezone el cron usa la zona del contenedor (UTC) y corre 20 h tarde.
+  const timezone = process.env.EXPIRATION_JOB_TZ || "America/La_Paz";
+
+  logger.info(`[${COMPONENT}] Job programado con cron: ${cronExpr} (${timezone})`);
+
   cron.schedule(cronExpr, () => {
     expireOldQrs();
-  });
+  }, { timezone });
+
+  // Si el servicio estuvo caído a la hora del cron, no esperar al día siguiente.
+  expireOldQrs();
 };
 
 module.exports = { startQrExpirationJob, expireOldQrs };
